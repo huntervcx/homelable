@@ -713,6 +713,65 @@ export interface UnifiImportResult {
   client_count: number
 }
 
+export interface OpnsenseImportModes {
+  clients: boolean
+  vpn: boolean
+  routes: boolean
+}
+
+export interface OpnsenseConnection {
+  host?: string
+  port?: number
+  api_key?: string
+  api_secret?: string
+  verify_tls?: boolean
+  modes?: OpnsenseImportModes
+}
+
+export interface OpnsenseNetwork {
+  cidr: string
+  via: string
+  source: 'route' | 'static' | 'wireguard' | 'ipsec'
+}
+
+export interface OpnsenseImportResult {
+  device_count: number
+  pending_created: number
+  pending_updated: number
+  links_recorded: number
+  networks: OpnsenseNetwork[]
+}
+
+export interface OpnsenseConfigData {
+  host: string
+  port: number
+  verify_tls: boolean
+  sync_enabled: boolean
+  sync_interval: number
+  credentials_configured: boolean
+  modes: OpnsenseImportModes
+}
+
+export const opnsenseApi = {
+  testConnection: (data: OpnsenseConnection) =>
+    api.post<{ connected: boolean; message: string }>('/opnsense/test-connection', data),
+
+  importToPending: (data: OpnsenseConnection) =>
+    api.post<OpnsenseImportResult>('/opnsense/import-pending', data),
+
+  // Adds the picked networks to the scanner ranges; nothing is scanned here.
+  addScanRanges: (cidrs: string[]) =>
+    api.post<{ added: string[]; scanner_ranges: string[] }>('/opnsense/scan-ranges', { cidrs }),
+
+  getConfig: () => api.get<OpnsenseConfigData>('/opnsense/config'),
+  // Only auto-sync activation and the import modes are persisted. Connection
+  // config and the API key/secret are env-only and never sent back.
+  saveConfig: (data: { sync_enabled: boolean; sync_interval: number; modes: OpnsenseImportModes }) =>
+    api.post<OpnsenseConfigData>('/opnsense/config', data),
+
+  syncNow: () => api.post<OpnsenseImportResult>('/opnsense/sync-now'),
+}
+
 export const unifiApi = {
   // `counts` holds a row count per source queried, so the import UI can show
   // what a box would pull in before it is ticked.

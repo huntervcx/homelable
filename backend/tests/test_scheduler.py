@@ -330,6 +330,7 @@ def test_scheduler_uses_settings_interval():
         mock_settings.zigbee_sync_enabled = False
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
+        mock_settings.opnsense_sync_enabled = False
         mock_settings.unraid_sync_enabled = False
         start_scheduler()
         _, kwargs = mock_sched.add_job.call_args
@@ -347,6 +348,7 @@ def test_start_and_stop_scheduler():
         mock_settings.zigbee_sync_enabled = False
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
+        mock_settings.opnsense_sync_enabled = False
         mock_settings.unraid_sync_enabled = False
         start_scheduler()
         stop_scheduler()
@@ -444,6 +446,7 @@ def test_start_scheduler_adds_service_job_when_enabled():
         mock_settings.zigbee_sync_enabled = False
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
+        mock_settings.opnsense_sync_enabled = False
         mock_settings.unraid_sync_enabled = False
         start_scheduler()
     job_ids = [kw.get("id") for _, kw in mock_sched.add_job.call_args_list]
@@ -673,6 +676,7 @@ def test_start_scheduler_adds_mesh_jobs_when_enabled():
         mock_settings.zwave_sync_enabled = True
         mock_settings.zwave_sync_interval = 3600
         mock_settings.unifi_sync_enabled = False
+        mock_settings.opnsense_sync_enabled = False
         mock_settings.unraid_sync_enabled = False
         start_scheduler()
     job_ids = [kw.get("id") for _, kw in mock_sched.add_job.call_args_list]
@@ -747,6 +751,7 @@ def test_start_scheduler_floors_a_short_unraid_sync_interval():
         mock_settings.zigbee_sync_enabled = False
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
+        mock_settings.opnsense_sync_enabled = False
         mock_settings.unraid_sync_enabled = True
         mock_settings.unraid_sync_interval = 5
         start_scheduler()
@@ -763,6 +768,7 @@ def test_start_scheduler_keeps_a_valid_unraid_sync_interval():
         mock_settings.zigbee_sync_enabled = False
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
+        mock_settings.opnsense_sync_enabled = False
         mock_settings.unraid_sync_enabled = True
         mock_settings.unraid_sync_interval = 1800
         start_scheduler()

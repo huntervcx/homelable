@@ -23,7 +23,7 @@ describe('ImportSourceModal', () => {
 
   it('lists every import source', () => {
     setup()
-    for (const label of ['Zigbee2MQTT', 'Z-Wave JS', 'Proxmox VE', 'UniFi']) {
+    for (const label of ['Zigbee2MQTT', 'Z-Wave JS', 'Proxmox VE', 'UniFi', 'OPNsense']) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
   })
@@ -39,6 +39,8 @@ describe('ImportSourceModal', () => {
     expect(screen.getByText('Mesh links')).toBeInTheDocument()
     expect(screen.getByText('LXC')).toBeInTheDocument()
     expect(screen.getByText('APs')).toBeInTheDocument()
+    expect(screen.getByText('~15 s')).toBeInTheDocument()
+    expect(screen.getByText('VPN')).toBeInTheDocument()
   })
 
   it.each([
@@ -46,6 +48,7 @@ describe('ImportSourceModal', () => {
     ['Z-Wave JS', 'zwave'],
     ['Proxmox VE', 'proxmox'],
     ['UniFi', 'unifi'],
+    ['OPNsense', 'opnsense'],
   ])('reports %s as the picked source', (label, key) => {
     const { onPick } = setup()
     fireEvent.click(screen.getByLabelText(`Import from ${label}`))

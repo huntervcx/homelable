@@ -335,6 +335,30 @@ async def _run_unifi_sync() -> None:
     await _background_unifi_sync(run_id)
 
 
+async def _run_opnsense_sync() -> None:
+    """Fetch the OPNsense inventory and upsert it into pending (auto-sync)."""
+    if not settings.opnsense_sync_enabled:
+        return
+    if not (settings.opnsense_host and settings.opnsense_api_key and settings.opnsense_api_secret):
+        logger.warning("OPNsense auto-sync enabled but host/API key not configured — skipping")
+        return
+    from app.api.routes.opnsense import _background_opnsense_sync
+    from app.db.models import ScanRun
+
+    async with AsyncSessionLocal() as db:
+        run = ScanRun(
+            status="running",
+            kind="opnsense",
+            ranges=[f"{settings.opnsense_host}:{settings.opnsense_port}"],
+        )
+        db.add(run)
+        await db.commit()
+        await db.refresh(run)
+        run_id = run.id
+
+    await _background_opnsense_sync(run_id)
+
+
 def _add_service_check_job() -> None:
     scheduler.add_job(
         _run_service_checks,
@@ -406,6 +430,17 @@ def _add_unifi_sync_job() -> None:
     )
 
 
+def _add_opnsense_sync_job() -> None:
+    scheduler.add_job(
+        _run_opnsense_sync,
+        "interval",
+        seconds=settings.opnsense_sync_interval,
+        id="opnsense_sync",
+        max_instances=1,
+        coalesce=True,
+    )
+
+
 def start_scheduler() -> None:
     global scheduler
     if scheduler.running:
@@ -435,6 +470,8 @@ def start_scheduler() -> None:
         _add_zwave_sync_job()
     if settings.unifi_sync_enabled:
         _add_unifi_sync_job()
+    if settings.opnsense_sync_enabled:
+        _add_opnsense_sync_job()
     scheduler.start()
     if settings.status_checker_enabled:
         logger.info("Scheduler started — status checks every %ds", settings.status_checker_interval)
@@ -605,6 +642,29 @@ def set_unifi_sync_enabled(enabled: bool) -> None:
     elif not enabled and job:
         scheduler.remove_job("unifi_sync")
         logger.info("UniFi auto-sync disabled")
+
+
+def reschedule_opnsense_sync(interval_seconds: int) -> None:
+    if interval_seconds < 300:
+        raise ValueError(f"interval_seconds must be >= 300, got {interval_seconds}")
+    if not scheduler.running:
+        logger.warning("Scheduler not running, skipping reschedule")
+        return
+    if scheduler.get_job("opnsense_sync"):
+        scheduler.reschedule_job("opnsense_sync", trigger="interval", seconds=interval_seconds)
+        logger.info("OPNsense auto-sync rescheduled to every %ds", interval_seconds)
+
+
+def set_opnsense_sync_enabled(enabled: bool) -> None:
+    if not scheduler.running:
+        return
+    job = scheduler.get_job("opnsense_sync")
+    if enabled and not job:
+        _add_opnsense_sync_job()
+        logger.info("OPNsense auto-sync enabled — every %ds", settings.opnsense_sync_interval)
+    elif not enabled and job:
+        scheduler.remove_job("opnsense_sync")
+        logger.info("OPNsense auto-sync disabled")
 
 
 def stop_scheduler() -> None:

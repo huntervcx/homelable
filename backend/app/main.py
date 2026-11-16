@@ -19,6 +19,7 @@ from app.api.routes import (
     liveview,
     media,
     nodes,
+    opnsense,
     proxmox,
     racks,
     scan,
@@ -100,6 +101,7 @@ app.include_router(liveview.router, prefix="/api/v1/liveview", tags=["liveview"]
 app.include_router(zigbee.router, prefix="/api/v1/zigbee", tags=["zigbee"])
 app.include_router(zwave.router, prefix="/api/v1/zwave", tags=["zwave"])
 app.include_router(proxmox.router, prefix="/api/v1/proxmox", tags=["proxmox"])
+app.include_router(opnsense.router, prefix="/api/v1/opnsense", tags=["opnsense"])
 app.include_router(unifi.router, prefix="/api/v1/unifi", tags=["unifi"])
 app.include_router(unraid.router, prefix="/api/v1/unraid", tags=["unraid"])
 app.include_router(stats.router, prefix="/api/v1/stats", tags=["stats"])

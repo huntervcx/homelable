@@ -341,6 +341,20 @@ class Settings(BaseSettings):
     unifi_import_known_clients: bool = False
     unifi_import_active_clients: bool = False
 
+    # OPNsense firewall import. Key/secret are secrets → env/.env ONLY, never
+    # persisted, like every other connection setting; only the auto-sync
+    # activation and the import modes are saved.
+    opnsense_host: str = ""
+    opnsense_port: int = 443
+    opnsense_api_key: str = ""
+    opnsense_api_secret: str = ""
+    opnsense_verify_tls: bool = False
+    opnsense_sync_enabled: bool = False
+    opnsense_sync_interval: int = 3600
+    opnsense_import_clients: bool = True
+    opnsense_import_vpn: bool = True
+    opnsense_import_routes: bool = True
+
     @property
     def unifi_effective_host(self) -> str:
         """Return bare host extracted from UNIFI_URL, or UNIFI_HOST."""
@@ -433,6 +447,16 @@ class Settings(BaseSettings):
                 key = f"unifi_import_{mode}"
                 if key in data:
                     setattr(self, key, bool(data[key]))
+            # OPNsense: auto-sync activation and import modes only (same
+            # reason as UniFi: connection config is env-only).
+            if "opnsense_sync_enabled" in data:
+                self.opnsense_sync_enabled = bool(data["opnsense_sync_enabled"])
+            if "opnsense_sync_interval" in data:
+                self.opnsense_sync_interval = int(data["opnsense_sync_interval"])
+            for mode in ("clients", "vpn", "routes"):
+                key = f"opnsense_import_{mode}"
+                if key in data:
+                    setattr(self, key, bool(data[key]))
         except Exception:
             pass
 
@@ -471,6 +495,11 @@ class Settings(BaseSettings):
             "unifi_import_infrastructure": self.unifi_import_infrastructure,
             "unifi_import_known_clients": self.unifi_import_known_clients,
             "unifi_import_active_clients": self.unifi_import_active_clients,
+            "opnsense_sync_enabled": self.opnsense_sync_enabled,
+            "opnsense_sync_interval": self.opnsense_sync_interval,
+            "opnsense_import_clients": self.opnsense_import_clients,
+            "opnsense_import_vpn": self.opnsense_import_vpn,
+            "opnsense_import_routes": self.opnsense_import_routes,
         }))
 
 

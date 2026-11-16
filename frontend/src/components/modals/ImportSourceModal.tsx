@@ -1,9 +1,9 @@
-import { Network, RadioTower, Server, HardDrive, Wifi, ArrowRight, Clock } from 'lucide-react'
+import { Network, RadioTower, Server, HardDrive, Wifi, Shield, ArrowRight, Clock } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { brandIconUrl } from '@/utils/nodeIcons'
 
-export type ImportSourceKey = 'zigbee' | 'zwave' | 'proxmox' | 'unraid' | 'unifi'
+export type ImportSourceKey = 'zigbee' | 'zwave' | 'proxmox' | 'unraid' | 'unifi' | 'opnsense'
 
 interface ImportSourceModalProps {
   open: boolean
@@ -83,6 +83,16 @@ const SOURCES: ImportSource[] = [
     duration: '~20 s',
     imports: ['Gateways', 'Switches', 'APs', 'Clients'],
   },
+  {
+    key: 'opnsense',
+    label: 'OPNsense',
+    brandSlug: 'opnsense',
+    fallbackIcon: Shield,
+    accent: '#d94f00',
+    description: 'Reads the firewall API for its hosts, VPN peers and the networks routed behind it.',
+    duration: '~15 s',
+    imports: ['Firewall', 'Hosts', 'VPN', 'Routes'],
+  },
 ]
 
 /**
@@ -109,7 +119,7 @@ export function ImportSourceModal({ open, onClose, onPick }: ImportSourceModalPr
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0 py-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             {SOURCES.map((source) => (
               <ImportSourceTile key={source.key} source={source} onPick={() => onPick(source.key)} />
             ))}
