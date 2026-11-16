@@ -815,7 +815,7 @@ async def process_host(
         keep.services = merge_services(keep.services, services, discovered=True)
         # Don't downgrade a Proxmox-typed guest (vm/lxc) or an Unraid
         # container to the generic scan guess; the importer knows the true type.
-        if not (keep.ieee_address or "").startswith(("pve-", "unraid-")):
+        if not (keep.ieee_address or "").startswith(("pve-", "pdm-", "unraid-")):
             keep.suggested_type = suggested_type
         # Merged row carries both sources (e.g. ["proxmox", "arp"]).
         keep.discovery_sources = add_source(keep.discovery_sources, discovery_source)

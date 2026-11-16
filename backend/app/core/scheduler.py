@@ -226,6 +226,30 @@ async def _run_proxmox_sync() -> None:
         await _background_proxmox_import(*args, **kwargs)
 
 
+async def _run_pdm_sync() -> None:
+    """Fetch the Proxmox Datacenter Manager inventory and upsert it into
+    pending (auto-sync). Records one ScanRun (kind=pdm)."""
+    if not settings.pdm_sync_enabled:
+        return
+    if not (settings.pdm_host and settings.pdm_token_id and settings.pdm_token_secret):
+        logger.warning("PDM auto-sync enabled but host/token not configured - skipping")
+        return
+    from app.api.routes.pdm import _background_pdm_import, create_pdm_run
+
+    async with AsyncSessionLocal() as db:
+        run = await create_pdm_run(db, settings.pdm_host, settings.pdm_port)
+        run_id = run.id
+
+    await _background_pdm_import(
+        run_id,
+        settings.pdm_host,
+        settings.pdm_port,
+        settings.pdm_token_id,
+        settings.pdm_token_secret,
+        settings.pdm_verify_tls,
+    )
+
+
 async def _run_unraid_sync() -> None:
     """Fetch the Unraid containers and upsert them into pending (auto-sync)."""
     if not settings.unraid_sync_enabled:
@@ -357,6 +381,22 @@ def _add_proxmox_sync_job() -> None:
     )
 
 
+def _pdm_sync_interval() -> int:
+    # .env and the settings file bypass the >= 300 check on write, so clamp here
+    return max(300, settings.pdm_sync_interval)
+
+
+def _add_pdm_sync_job() -> None:
+    scheduler.add_job(
+        _run_pdm_sync,
+        "interval",
+        seconds=_pdm_sync_interval(),
+        id="pdm_sync",
+        max_instances=1,
+        coalesce=True,
+    )
+
+
 def _unraid_sync_interval() -> int:
     # .env and the settings file bypass the >= 300 check on write, so clamp here
     return max(300, settings.unraid_sync_interval)
@@ -427,6 +467,8 @@ def start_scheduler() -> None:
             _add_service_check_job()
     if settings.proxmox_sync_enabled:
         _add_proxmox_sync_job()
+    if settings.pdm_sync_enabled:
+        _add_pdm_sync_job()
     if settings.unraid_sync_enabled:
         _add_unraid_sync_job()
     if settings.zigbee_sync_enabled:
@@ -507,6 +549,31 @@ def set_proxmox_sync_enabled(enabled: bool) -> None:
     elif not enabled and job:
         scheduler.remove_job("proxmox_sync")
         logger.info("Proxmox auto-sync disabled")
+
+
+def reschedule_pdm_sync(interval_seconds: int) -> None:
+    """Update the PDM auto-sync interval on the running scheduler (if enabled)."""
+    if interval_seconds < 300:
+        raise ValueError(f"interval_seconds must be >= 300, got {interval_seconds}")
+    if not scheduler.running:
+        logger.warning("Scheduler not running, skipping reschedule")
+        return
+    if scheduler.get_job("pdm_sync"):
+        scheduler.reschedule_job("pdm_sync", trigger="interval", seconds=interval_seconds)
+        logger.info("PDM auto-sync rescheduled to every %ds", interval_seconds)
+
+
+def set_pdm_sync_enabled(enabled: bool) -> None:
+    """Add or remove the PDM auto-sync job on the running scheduler."""
+    if not scheduler.running:
+        return
+    job = scheduler.get_job("pdm_sync")
+    if enabled and not job:
+        _add_pdm_sync_job()
+        logger.info("PDM auto-sync enabled - every %ds", _pdm_sync_interval())
+    elif not enabled and job:
+        scheduler.remove_job("pdm_sync")
+        logger.info("PDM auto-sync disabled")
 
 
 def reschedule_unraid_sync(interval_seconds: int) -> None:

@@ -269,6 +269,18 @@ class Settings(BaseSettings):
     proxmox_sync_enabled: bool = False
     proxmox_sync_interval: int = 3600  # seconds (floor 300 enforced on write)
 
+    # Proxmox Datacenter Manager (PDM) import. Same rules as Proxmox VE: the
+    # token is a credential -> env/.env ONLY, never persisted by the app and
+    # never returned by the API; connection config is env-only and only the
+    # auto-sync activation is persisted. token_id is 'user@realm!tokenname'.
+    pdm_token_id: str = ""
+    pdm_token_secret: str = ""
+    pdm_host: str = ""
+    pdm_port: int = 8443
+    pdm_verify_tls: bool = True
+    pdm_sync_enabled: bool = False
+    pdm_sync_interval: int = 3600  # seconds (floor 300 enforced on write)
+
     # Unraid import (Docker containers). Same rules as Proxmox: the API key is a
     # credential -> env/.env ONLY, never persisted by the app and never returned
     # by the API. Connection config is env-only; only the auto-sync activation
@@ -402,6 +414,11 @@ class Settings(BaseSettings):
                 self.proxmox_sync_enabled = bool(data["proxmox_sync_enabled"])
             if "proxmox_sync_interval" in data:
                 self.proxmox_sync_interval = int(data["proxmox_sync_interval"])
+            # PDM: auto-sync activation only, same reason as Proxmox.
+            if "pdm_sync_enabled" in data:
+                self.pdm_sync_enabled = bool(data["pdm_sync_enabled"])
+            if "pdm_sync_interval" in data:
+                self.pdm_sync_interval = int(data["pdm_sync_interval"])
             # Unraid: auto-sync activation only, same reason as Proxmox.
             if "unraid_sync_enabled" in data:
                 self.unraid_sync_enabled = bool(data["unraid_sync_enabled"])
@@ -452,6 +469,10 @@ class Settings(BaseSettings):
             # be written to disk — that is the single source of truth.
             "proxmox_sync_enabled": self.proxmox_sync_enabled,
             "proxmox_sync_interval": self.proxmox_sync_interval,
+            # PDM: only the auto-sync activation. Host/port/token/verify_tls
+            # are env-only.
+            "pdm_sync_enabled": self.pdm_sync_enabled,
+            "pdm_sync_interval": self.pdm_sync_interval,
             # Unraid: only the auto-sync activation. Host/port/key/verify_tls
             # are env-only.
             "unraid_sync_enabled": self.unraid_sync_enabled,

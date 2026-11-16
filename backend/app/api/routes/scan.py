@@ -679,7 +679,7 @@ async def list_proxmox_children(
             await db.execute(
                 select(InventoryDeviceLink.target_ieee).where(
                     InventoryDeviceLink.source_ieee == device.ieee_address,
-                    InventoryDeviceLink.discovery_source.in_(("proxmox", "unraid")),
+                    InventoryDeviceLink.discovery_source.in_(("proxmox", "pdm", "unraid")),
                 )
             )
         )
@@ -1056,7 +1056,7 @@ async def _is_proxmox_cluster_member(db: AsyncSession, ieee: str | None) -> bool
         await db.execute(
             select(InventoryDeviceLink.id)
             .where(
-                InventoryDeviceLink.discovery_source == "proxmox_cluster",
+                InventoryDeviceLink.discovery_source.in_(("proxmox_cluster", "pdm_cluster")),
                 (InventoryDeviceLink.source_ieee == ieee) | (InventoryDeviceLink.target_ieee == ieee),
             )
             .limit(1)
@@ -1163,9 +1163,9 @@ async def _resolve_pending_links_for_ieee(
         #   unraid          -> 'virtual' host->container, same shape
         #   proxmox_cluster → 'cluster' host↔host, horizontal (right → left)
         #   anything else   → 'iot' mesh link, vertical
-        if link.discovery_source in ("proxmox", "unraid"):
+        if link.discovery_source in ("proxmox", "pdm", "unraid"):
             edge_type, src_handle, tgt_handle = "virtual", "bottom", "top"
-        elif link.discovery_source == "proxmox_cluster":
+        elif link.discovery_source in ("proxmox_cluster", "pdm_cluster"):
             edge_type, src_handle, tgt_handle = "cluster", "right", "left"
         elif link.discovery_source == "zigbee_mesh":
             # Neighbour link, not a parent attachment: sideways, like the

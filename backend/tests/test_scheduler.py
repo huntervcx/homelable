@@ -331,6 +331,7 @@ def test_scheduler_uses_settings_interval():
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
         mock_settings.unraid_sync_enabled = False
+        mock_settings.pdm_sync_enabled = False
         start_scheduler()
         _, kwargs = mock_sched.add_job.call_args
         assert kwargs["seconds"] == 45
@@ -348,6 +349,7 @@ def test_start_and_stop_scheduler():
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
         mock_settings.unraid_sync_enabled = False
+        mock_settings.pdm_sync_enabled = False
         start_scheduler()
         stop_scheduler()
         mock_sched.add_job.assert_called_once()
@@ -445,6 +447,7 @@ def test_start_scheduler_adds_service_job_when_enabled():
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
         mock_settings.unraid_sync_enabled = False
+        mock_settings.pdm_sync_enabled = False
         start_scheduler()
     job_ids = [kw.get("id") for _, kw in mock_sched.add_job.call_args_list]
     assert "status_checks" in job_ids
@@ -674,6 +677,7 @@ def test_start_scheduler_adds_mesh_jobs_when_enabled():
         mock_settings.zwave_sync_interval = 3600
         mock_settings.unifi_sync_enabled = False
         mock_settings.unraid_sync_enabled = False
+        mock_settings.pdm_sync_enabled = False
         start_scheduler()
     job_ids = [kw.get("id") for _, kw in mock_sched.add_job.call_args_list]
     assert "zigbee_sync" in job_ids
@@ -748,6 +752,7 @@ def test_start_scheduler_floors_a_short_unraid_sync_interval():
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
         mock_settings.unraid_sync_enabled = True
+        mock_settings.pdm_sync_enabled = False
         mock_settings.unraid_sync_interval = 5
         start_scheduler()
         assert _unraid_sync_seconds(mock_sched) == 300
@@ -764,6 +769,7 @@ def test_start_scheduler_keeps_a_valid_unraid_sync_interval():
         mock_settings.zwave_sync_enabled = False
         mock_settings.unifi_sync_enabled = False
         mock_settings.unraid_sync_enabled = True
+        mock_settings.pdm_sync_enabled = False
         mock_settings.unraid_sync_interval = 1800
         start_scheduler()
         assert _unraid_sync_seconds(mock_sched) == 1800
@@ -778,3 +784,58 @@ def test_set_unraid_sync_enabled_floors_a_short_interval():
         mock_settings.unraid_sync_interval = 5
         set_unraid_sync_enabled(True)
     assert _unraid_sync_seconds(mock_sched) == 300
+
+
+# ---------------------------------------------------------------------------
+# PDM auto-sync job
+# ---------------------------------------------------------------------------
+
+def _pdm_sync_seconds(mock_sched: MagicMock) -> int | None:
+    for call in mock_sched.add_job.call_args_list:
+        if call.kwargs.get("id") == "pdm_sync":
+            return call.kwargs["seconds"]
+    return None
+
+
+def _start_with_pdm(enabled: bool, interval: int) -> MagicMock:
+    mock_sched = MagicMock()
+    with patch("app.core.scheduler.AsyncIOScheduler", return_value=mock_sched), \
+         patch("app.core.scheduler.settings") as mock_settings:
+        mock_settings.status_checker_interval = 60
+        mock_settings.service_check_enabled = False
+        mock_settings.proxmox_sync_enabled = False
+        mock_settings.zigbee_sync_enabled = False
+        mock_settings.zwave_sync_enabled = False
+        mock_settings.unifi_sync_enabled = False
+        mock_settings.unraid_sync_enabled = False
+        mock_settings.pdm_sync_enabled = enabled
+        mock_settings.pdm_sync_interval = interval
+        start_scheduler()
+    return mock_sched
+
+
+def test_start_scheduler_registers_the_pdm_job_when_enabled() -> None:
+    assert _pdm_sync_seconds(_start_with_pdm(True, 1800)) == 1800
+    assert _pdm_sync_seconds(_start_with_pdm(False, 1800)) is None
+
+
+def test_start_scheduler_floors_a_short_pdm_sync_interval() -> None:
+    assert _pdm_sync_seconds(_start_with_pdm(True, 5)) == 300
+
+
+def test_set_and_reschedule_pdm_sync_on_the_running_scheduler() -> None:
+    from app.core import scheduler as sch
+
+    mock_sched = MagicMock()
+    mock_sched.running = True
+    with patch.object(sch, "scheduler", mock_sched):
+        mock_sched.get_job.return_value = None
+        sch.set_pdm_sync_enabled(True)
+        assert mock_sched.add_job.call_args.kwargs["id"] == "pdm_sync"
+        mock_sched.get_job.return_value = object()
+        sch.set_pdm_sync_enabled(False)
+        mock_sched.remove_job.assert_called_once_with("pdm_sync")
+        sch.reschedule_pdm_sync(900)
+        mock_sched.reschedule_job.assert_called_once_with("pdm_sync", trigger="interval", seconds=900)
+        with pytest.raises(ValueError):
+            sch.reschedule_pdm_sync(100)
