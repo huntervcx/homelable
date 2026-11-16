@@ -269,6 +269,22 @@ async def test_test_connection_warns_when_no_remote_is_visible() -> None:
 
 
 @pytest.mark.asyncio
+async def test_test_connection_warns_when_token_has_no_acl() -> None:
+    """A privilege-separated token with no ACL authenticates, then gets a 403."""
+
+    async def fake(client, path, params=None):
+        if path == "/version":
+            return {"version": "1.1"}
+        raise httpx.HTTPStatusError(
+            "forbidden", request=httpx.Request("GET", "https://pdm/x"), response=httpx.Response(403)
+        )
+
+    with patch.object(svc, "_get_json", new=AsyncMock(side_effect=fake)):
+        ok, msg = await svc.test_pdm_connection("pdm", 8443, "u@pam!t", "sec")
+    assert ok is True and "no permission on resources" in msg and "/resource" in msg
+
+
+@pytest.mark.asyncio
 async def test_test_connection_failure_is_sanitized() -> None:
     async def boom(client, path, params=None):
         raise httpx.ConnectError("Connection refused PDMAPIToken=u:secret")

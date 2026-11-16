@@ -21,7 +21,6 @@ Endpoints used (PDM API viewer, https://pdm.proxmox.com/docs/api-viewer/):
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import ipaddress
 import logging
 from typing import Any
@@ -459,12 +458,26 @@ async def test_pdm_connection(
         ) as client:
             data = await _get_json(client, "/version")
             results = None
+            no_access = False
             # version answered; the import will report the real problem
-            with contextlib.suppress(httpx.HTTPError):
+            try:
                 results = await _get_json(client, "/resources/list", {"resource-type": "node"})
+            except httpx.HTTPStatusError as exc:
+                # A token without any ACL authenticates fine (``/version`` is
+                # open) and is then refused every resource: say so here rather
+                # than let the import fail later on an opaque 403.
+                no_access = exc.response.status_code == 403
+            except httpx.HTTPError:
+                pass
         version = data.get("version", "?") if isinstance(data, dict) else "?"
         message = f"Connected to {_PDM_LABEL} {version}"
-        if isinstance(results, list):
+        if no_access:
+            message += (
+                " — warning: this API token has no permission on resources, so nothing will "
+                "be imported. In PDM, grant the token the Auditor role on path '/resource' "
+                "(Access Control → API Token Permissions), or turn off privilege separation."
+            )
+        elif isinstance(results, list):
             remotes = sum(1 for r in results if isinstance(r, dict))
             message += f" — {remotes} remote{'s' if remotes != 1 else ''} visible"
             if remotes == 0:
