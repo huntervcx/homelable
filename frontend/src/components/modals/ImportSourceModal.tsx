@@ -1,9 +1,9 @@
-import { Network, RadioTower, Server, HardDrive, Wifi, ArrowRight, Clock } from 'lucide-react'
+import { Network, RadioTower, Server, Layers, HardDrive, Wifi, ArrowRight, Clock } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { brandIconUrl } from '@/utils/nodeIcons'
 
-export type ImportSourceKey = 'zigbee' | 'zwave' | 'proxmox' | 'unraid' | 'unifi'
+export type ImportSourceKey = 'zigbee' | 'zwave' | 'proxmox' | 'pdm' | 'unraid' | 'unifi'
 
 interface ImportSourceModalProps {
   open: boolean
@@ -64,6 +64,16 @@ const SOURCES: ImportSource[] = [
     imports: ['Hosts', 'VMs', 'LXC'],
   },
   {
+    key: 'pdm',
+    label: 'Proxmox Datacenter Manager',
+    brandSlug: 'proxmox',
+    fallbackIcon: Layers,
+    accent: '#e57000',
+    description: 'Asks PDM for every remote it manages: PVE nodes, VMs and LXC, plus Backup Servers.',
+    duration: '~10 s',
+    imports: ['Nodes', 'VMs', 'LXC', 'PBS'],
+  },
+  {
     key: 'unraid',
     label: 'Unraid',
     brandSlug: 'unraid',
@@ -109,7 +119,7 @@ export function ImportSourceModal({ open, onClose, onPick }: ImportSourceModalPr
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0 py-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {SOURCES.map((source) => (
               <ImportSourceTile key={source.key} source={source} onPick={() => onPick(source.key)} />
             ))}

@@ -43,3 +43,20 @@ describe('buildProxmoxClusterEdges', () => {
     expect(isProxmoxCluster([host('a'), guest('vm-1')])).toBe(false)
   })
 })
+
+describe('buildProxmoxClusterEdges with PDM remotes', () => {
+  const pdmHost = (id: string, remote: string) => ({ ...host(id), remote })
+
+  it('chains the hosts of each remote separately', () => {
+    const nodes = [pdmHost('a1', 'a'), pdmHost('b1', 'b'), pdmHost('a2', 'a'), pdmHost('b2', 'b'), pdmHost('c1', 'c')]
+    expect(buildProxmoxClusterEdges(nodes).map((e) => [e.source, e.target])).toEqual([
+      ['a1', 'a2'],
+      ['b1', 'b2'],
+    ])
+  })
+
+  it('ignores PBS servers', () => {
+    const pbs = { id: 'pbs', label: 'pbs', type: 'server' as const, ieee_address: 'pbs', status: 'online', remote: 'a' }
+    expect(buildProxmoxClusterEdges([pdmHost('a1', 'a'), pbs])).toEqual([])
+  })
+})

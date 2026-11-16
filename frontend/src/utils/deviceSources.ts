@@ -7,12 +7,13 @@
  */
 import type { InventoryEntry } from '@/components/modals/InventoryDeviceModal'
 
-export type SourceBucket = 'ip' | 'zigbee' | 'zwave' | 'proxmox' | 'unraid' | 'unifi' | 'rack' | 'canvas'
+export type SourceBucket = 'ip' | 'zigbee' | 'zwave' | 'proxmox' | 'pdm' | 'unraid' | 'unifi' | 'rack' | 'canvas'
 
 export const SOURCE_META: Record<SourceBucket, { color: string; label: string }> = {
   zigbee: { color: '#00d4ff', label: 'ZIGBEE' },
   zwave: { color: '#ff6e00', label: 'Z-WAVE' },
   proxmox: { color: '#e57000', label: 'PROXMOX' },
+  pdm: { color: '#e57000', label: 'PDM' },
   unraid: { color: '#e22828', label: 'UNRAID' },
   unifi: { color: '#0559c9', label: 'UNIFI' },
   ip: { color: '#a855f7', label: 'IP' },
@@ -22,7 +23,7 @@ export const SOURCE_META: Record<SourceBucket, { color: string; label: string }>
 }
 
 // Stable badge order (IP first — it's the primary discovery path).
-const SOURCE_ORDER: SourceBucket[] = ['ip', 'proxmox', 'unraid', 'unifi', 'zigbee', 'zwave', 'rack', 'canvas']
+const SOURCE_ORDER: SourceBucket[] = ['ip', 'proxmox', 'pdm', 'unraid', 'unifi', 'zigbee', 'zwave', 'rack', 'canvas']
 
 /** Every source bucket that has observed this device. A device found by both an
  *  IP scan and a Proxmox import returns {ip, proxmox}. */
@@ -35,6 +36,7 @@ export function sourceBuckets(d: InventoryEntry): Set<SourceBucket> {
     if (s === 'zwave') buckets.add('zwave')
     else if (s === 'zigbee') buckets.add('zigbee')
     else if (s === 'proxmox') buckets.add('proxmox')
+    else if (s === 'pdm') buckets.add('pdm')
     else if (s === 'unraid') buckets.add('unraid')
     // UniFi infrastructure ('unifi') and clients ('unifi-client') share one
     // bucket — the type filter already separates ap/switch/router from hosts.
@@ -48,7 +50,7 @@ export function sourceBuckets(d: InventoryEntry): Set<SourceBucket> {
   }
   if (buckets.size === 0) {
     // No source recorded — legacy heuristic (mesh rows carry a non-pve ieee).
-    if (d.ieee_address && !d.ieee_address.startsWith('pve-')) buckets.add('zigbee')
+    if (d.ieee_address && !d.ieee_address.startsWith('pve-') && !d.ieee_address.startsWith('pdm-')) buckets.add('zigbee')
     else buckets.add('ip')
   }
   return buckets

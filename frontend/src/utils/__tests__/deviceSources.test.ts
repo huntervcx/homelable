@@ -24,6 +24,11 @@ describe('sourceBuckets', () => {
     expect([...buckets].sort()).toEqual(['ip', 'proxmox'])
   })
 
+  it('files a PDM device under its own bucket, not the IP scan', () => {
+    expect(orderedSources(device({ discovery_sources: ['pdm', 'arp'] }))).toEqual(['ip', 'pdm'])
+    expect(orderedSources(device({ discovery_sources: [], discovery_source: null, ieee_address: 'pdm-lab/101' }))).toEqual(['ip'])
+  })
+
   it('files an Unraid container under its own bucket, not the IP scan', () => {
     expect(orderedSources(device({ discovery_sources: ['unraid', 'arp'] }))).toEqual(['ip', 'unraid'])
   })

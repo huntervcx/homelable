@@ -38,3 +38,10 @@ export type ProxmoxCanvasMode =
   | 'linked'
   /** Host drawn as a box with its guests nested inside (`container_mode`). */
   | 'container'
+
+/** What the canvas drop needs of a node. The Proxmox import fits it as is; the
+ * PDM import adds PBS `server` nodes and a `remote` that names the cluster. */
+export type ProxmoxCanvasNode = Omit<ProxmoxNode, 'type'> & {
+  type: ProxmoxNodeType | 'server'
+  remote?: string | null
+}

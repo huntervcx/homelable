@@ -13,6 +13,11 @@ vi.mock('@/api/client', () => ({
     saveConfig: vi.fn(),
     syncNow: vi.fn(),
   },
+  pdmApi: {
+    getConfig: vi.fn(),
+    saveConfig: vi.fn(),
+    syncNow: vi.fn(),
+  },
   zigbeeApi: {
     getConfig: vi.fn(),
     saveConfig: vi.fn(),
@@ -35,7 +40,7 @@ vi.mock('@/api/client', () => ({
   },
 }))
 
-import { settingsApi, proxmoxApi, zigbeeApi, zwaveApi, unifiApi, unraidApi } from '@/api/client'
+import { settingsApi, proxmoxApi, pdmApi, zigbeeApi, zwaveApi, unifiApi, unraidApi } from '@/api/client'
 import { toast } from 'sonner'
 import { useCanvasStore } from '@/stores/canvasStore'
 
@@ -46,6 +51,7 @@ describe('SettingsModal', () => {
     vi.mocked(settingsApi.save).mockResolvedValue({ data: { interval_seconds: 60, service_check_enabled: false, service_check_interval: 300 } } as never)
     vi.mocked(proxmoxApi.getConfig).mockRejectedValue(new Error('not configured'))
     vi.mocked(unraidApi.getConfig).mockRejectedValue(new Error('not configured'))
+    vi.mocked(pdmApi.getConfig).mockRejectedValue(new Error('not configured'))
     vi.mocked(proxmoxApi.saveConfig).mockResolvedValue({ data: {} } as never)
     // Zigbee/Z-Wave default to "not configured" so the mesh sections stay hidden
     // unless a test opts in — keeps the single Proxmox "Re-sync now" unambiguous.
@@ -515,6 +521,67 @@ describe('SettingsModal - Unraid', () => {
     await waitFor(() => {
       expect(unraidApi.syncNow).toHaveBeenCalledOnce()
       expect(toast.success).toHaveBeenCalledWith('Unraid sync started')
+    })
+  })
+})
+
+describe('SettingsModal - PDM', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(settingsApi.get).mockResolvedValue({ data: { interval_seconds: 60, service_check_enabled: false, service_check_interval: 300 } } as never)
+    vi.mocked(settingsApi.save).mockResolvedValue({ data: {} } as never)
+    vi.mocked(proxmoxApi.getConfig).mockRejectedValue(new Error('not configured'))
+    vi.mocked(unraidApi.getConfig).mockRejectedValue(new Error('not configured'))
+    vi.mocked(zigbeeApi.getConfig).mockRejectedValue(new Error('not configured'))
+    vi.mocked(zwaveApi.getConfig).mockRejectedValue(new Error('not configured'))
+    vi.mocked(unifiApi.getConfig).mockRejectedValue(new Error('not configured'))
+    vi.mocked(pdmApi.saveConfig).mockResolvedValue({ data: {} } as never)
+    vi.mocked(pdmApi.syncNow).mockResolvedValue({ data: { status: 'running' } } as never)
+    vi.mocked(toast.success).mockReset()
+  })
+
+  const config = (over = {}) => ({
+    data: {
+      host: 'pdm.lan', port: 8443, verify_tls: true, sync_enabled: true,
+      sync_interval: 3600, token_configured: true, ...over,
+    },
+  })
+
+  it('persists only the sync fields on Save', async () => {
+    vi.mocked(pdmApi.getConfig).mockResolvedValue(config() as never)
+    render(<SettingsModal open onClose={vi.fn()} />)
+    await waitFor(() => expect(screen.getByLabelText('Toggle PDM auto-sync')).toBeChecked())
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(pdmApi.saveConfig).toHaveBeenCalledWith({ sync_enabled: true, sync_interval: 3600 })
+    })
+  })
+
+  it('clamps a typed sync interval into the range the backend accepts', async () => {
+    vi.mocked(pdmApi.getConfig).mockResolvedValue(config() as never)
+    render(<SettingsModal open onClose={vi.fn()} />)
+    const input = await screen.findByLabelText('PDM sync interval')
+    await waitFor(() => expect(input).toHaveValue(3600))
+    fireEvent.change(input, { target: { value: '100' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(pdmApi.saveConfig).toHaveBeenCalled())
+    expect(vi.mocked(pdmApi.saveConfig).mock.calls[0][0].sync_interval).toBe(300)
+  })
+
+  it('shows the env vars to set when no server is configured', async () => {
+    vi.mocked(pdmApi.getConfig).mockResolvedValue(config({ token_configured: false }) as never)
+    render(<SettingsModal open onClose={vi.fn()} />)
+    await screen.findByText('PDM_TOKEN_SECRET')
+    expect(screen.queryByLabelText('Toggle PDM auto-sync')).toBeNull()
+  })
+
+  it('triggers an immediate sync from Re-sync now', async () => {
+    vi.mocked(pdmApi.getConfig).mockResolvedValue(config() as never)
+    render(<SettingsModal open onClose={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Re-sync now' }))
+    await waitFor(() => {
+      expect(pdmApi.syncNow).toHaveBeenCalledOnce()
+      expect(toast.success).toHaveBeenCalledWith('PDM sync started')
     })
   })
 })

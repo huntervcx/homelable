@@ -30,6 +30,7 @@ import { SettingsModal } from '@/components/modals/SettingsModal'
 import { ZigbeeImportModal } from '@/components/zigbee/ZigbeeImportModal'
 import { ZwaveImportModal } from '@/components/zwave/ZwaveImportModal'
 import { ProxmoxImportModal } from '@/components/proxmox/ProxmoxImportModal'
+import { PdmImportModal } from '@/components/pdm/PdmImportModal'
 import { UnraidImportModal } from '@/components/unraid/UnraidImportModal'
 import { UnifiImportModal } from '@/components/unifi/UnifiImportModal'
 import { ImportSourceModal, type ImportSourceKey } from '@/components/modals/ImportSourceModal'
@@ -72,8 +73,9 @@ import { useRackStore } from '@/rack/store'
 import type { NodeData, EdgeData, CustomStyleDef, DesignType, FloorMapConfig, NodeType } from '@/types'
 import type { ZigbeeNode, ZigbeeEdge } from '@/components/zigbee/types'
 import type { ZwaveNode, ZwaveEdge } from '@/components/zwave/types'
-import type { ProxmoxNode, ProxmoxEdge, ProxmoxCanvasMode } from '@/components/proxmox/types'
+import type { ProxmoxCanvasNode, ProxmoxEdge, ProxmoxCanvasMode } from '@/components/proxmox/types'
 import type { UnraidNode, UnraidEdge } from '@/components/unraid/types'
+import type { PdmNode, PdmEdge } from '@/components/pdm/types'
 import { buildProxmoxClusterEdges } from '@/components/proxmox/clusterEdges'
 import { groupProxmoxGuests, layoutProxmoxContainers, measureProxmoxContainers } from '@/utils/proxmoxContainerLayout'
 
@@ -166,6 +168,7 @@ export default function App() {
   const [zigbeeImportOpen, setZigbeeImportOpen] = useState(false)
   const [zwaveImportOpen, setZwaveImportOpen] = useState(false)
   const [proxmoxImportOpen, setProxmoxImportOpen] = useState(false)
+  const [pdmImportOpen, setPdmImportOpen] = useState(false)
   const [unraidImportOpen, setUnraidImportOpen] = useState(false)
   const [unifiImportOpen, setUnifiImportOpen] = useState(false)
   const [importPickerOpen, setImportPickerOpen] = useState(false)
@@ -379,6 +382,7 @@ export default function App() {
     if (source === 'zigbee') setZigbeeImportOpen(true)
     else if (source === 'zwave') setZwaveImportOpen(true)
     else if (source === 'proxmox') setProxmoxImportOpen(true)
+    else if (source === 'pdm') setPdmImportOpen(true)
     else if (source === 'unraid') setUnraidImportOpen(true)
     else setUnifiImportOpen(true)
   }, [])
@@ -996,8 +1000,10 @@ export default function App() {
     markUnsaved()
   }, [addNode, onConnect, snapshotHistory, markUnsaved])
 
+  // Shared with the PDM import: its nodes are the same vm/lxc/proxmox shapes,
+  // plus PBS 'server' nodes that land as loose nodes.
   const handleProxmoxAddToCanvas = useCallback((
-    pmNodes: ProxmoxNode[],
+    pmNodes: ProxmoxCanvasNode[],
     pmEdges: ProxmoxEdge[],
     mode: ProxmoxCanvasMode = 'linked',
   ) => {
@@ -1100,6 +1106,12 @@ export default function App() {
     }))
     markUnsaved()
   }, [addNode, onConnect, snapshotHistory, markUnsaved])
+
+  const handlePdmAddToCanvas = useCallback((
+    pdmNodes: PdmNode[],
+    pdmEdges: PdmEdge[],
+    mode: ProxmoxCanvasMode = 'linked',
+  ) => handleProxmoxAddToCanvas(pdmNodes, pdmEdges, mode), [handleProxmoxAddToCanvas])
 
   const handleUnraidAddToCanvas = useCallback((urNodes: UnraidNode[], urEdges: UnraidEdge[]) => {
     snapshotHistory()
@@ -1437,6 +1449,17 @@ export default function App() {
             onAddToCanvas={handleProxmoxAddToCanvas}
             onInventoryImported={() => {
               toast.success('Proxmox import started — check Scan History for results')
+            }}
+          />
+        )}
+
+        {!STANDALONE && (
+          <PdmImportModal
+            open={pdmImportOpen}
+            onClose={() => setPdmImportOpen(false)}
+            onAddToCanvas={handlePdmAddToCanvas}
+            onInventoryImported={() => {
+              toast.success('PDM import started — check Scan History for results')
             }}
           />
         )}

@@ -381,6 +381,42 @@ export const proxmoxApi = {
     }[]>('/proxmox/sync-now'),
 }
 
+export interface PdmConnection {
+  host: string
+  port: number
+  token_id?: string
+  token_secret?: string
+  verify_tls?: boolean
+}
+
+export interface PdmConfigData {
+  host: string
+  port: number
+  verify_tls: boolean
+  sync_enabled: boolean
+  sync_interval: number
+  token_configured: boolean
+}
+
+export const pdmApi = {
+  testConnection: (data: PdmConnection) =>
+    api.post<{ connected: boolean; message: string }>('/pdm/test-connection', data),
+
+  importNetwork: (data: PdmConnection) =>
+    api.post<import('@/components/pdm/types').PdmImportResponse>('/pdm/import', data),
+
+  importToPending: (data: PdmConnection) =>
+    api.post<ScanRunResult>('/pdm/import-pending', data),
+
+  getConfig: () => api.get<PdmConfigData>('/pdm/config'),
+  // Only the auto-sync activation is persisted. Connection config
+  // (host/port/token/verify_tls) is env-only and never sent.
+  saveConfig: (data: { sync_enabled: boolean; sync_interval: number }) =>
+    api.post<PdmConfigData>('/pdm/config', data),
+
+  syncNow: () => api.post<ScanRunResult>('/pdm/sync-now'),
+}
+
 export interface UnraidConnection {
   host: string
   /** Omitted = 443 for HTTPS, 80 for HTTP. */

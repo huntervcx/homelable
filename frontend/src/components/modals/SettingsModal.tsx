@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button'
 import {
   settingsApi,
   proxmoxApi,
+  pdmApi,
   unraidApi,
   zigbeeApi,
   zwaveApi,
   unifiApi,
   type ProxmoxConfigData,
+  type PdmConfigData,
   type UnraidConfigData,
   type ZigbeeConfigData,
   type ZwaveConfigData,
@@ -132,6 +134,9 @@ function MeshAutoSync({
 // Mirrors UnifiSyncConfig.sync_interval (ge=300, le=86400) on the backend.
 const UNIFI_MIN_INTERVAL = 300
 const UNIFI_MAX_INTERVAL = 86400
+// Mirrors PdmSyncConfig.sync_interval (ge=300, le=86400) on the backend.
+const PDM_MIN_INTERVAL = 300
+const PDM_MAX_INTERVAL = 86400
 // Mirrors UnraidSyncConfig.sync_interval (ge=300, le=86400) on the backend.
 const UNRAID_MIN_INTERVAL = 300
 const UNRAID_MAX_INTERVAL = 86400
@@ -154,6 +159,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [pmSyncEnabled, setPmSyncEnabled] = useState(false)
   const [pmInterval, setPmInterval] = useState(3600)
   const [pmSyncing, setPmSyncing] = useState(false)
+  const [pdmConfig, setPdmConfig] = useState<PdmConfigData | null>(null)
+  const [pdmSyncEnabled, setPdmSyncEnabled] = useState(false)
+  const [pdmInterval, setPdmInterval] = useState(3600)
+  const [pdmSyncing, setPdmSyncing] = useState(false)
   const [urConfig, setUrConfig] = useState<UnraidConfigData | null>(null)
   const [urSyncEnabled, setUrSyncEnabled] = useState(false)
   const [urInterval, setUrInterval] = useState(3600)
@@ -204,6 +213,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         setPmInterval(res.data.sync_interval)
       })
       .catch(() => {/* proxmox not configured */})
+    pdmApi.getConfig()
+      .then((res) => {
+        setPdmConfig(res.data)
+        setPdmSyncEnabled(res.data.sync_enabled)
+        setPdmInterval(res.data.sync_interval)
+      })
+      .catch(() => {/* pdm not configured */})
     unraidApi.getConfig()
       .then((res) => {
         setUrConfig(res.data)
@@ -268,6 +284,18 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       toast.error('Failed to start Proxmox sync')
     } finally {
       setPmSyncing(false)
+    }
+  }
+
+  const handlePdmSyncNow = async () => {
+    setPdmSyncing(true)
+    try {
+      await pdmApi.syncNow()
+      toast.success('PDM sync started')
+    } catch {
+      toast.error('Failed to start PDM sync')
+    } finally {
+      setPdmSyncing(false)
     }
   }
 
@@ -340,6 +368,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         await proxmoxApi.saveConfig({
           sync_enabled: pmSyncEnabled,
           sync_interval: pmInterval,
+        })
+      }
+      if (pdmConfig) {
+        // Connection config (host/port/token/verify) is env-only. Clamped like
+        // the other configs: a 422 would abort the save after earlier ones persisted.
+        const clamped = Math.min(PDM_MAX_INTERVAL, Math.max(PDM_MIN_INTERVAL, Math.round(pdmInterval)))
+        if (clamped !== pdmInterval) setPdmInterval(clamped)
+        await pdmApi.saveConfig({
+          sync_enabled: pdmSyncEnabled,
+          sync_interval: clamped,
         })
       }
       if (urConfig) {
@@ -700,6 +738,63 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     Set <span className="font-mono">PROXMOX_HOST</span> in the server .env to enable manual re-sync.
                   </p>
                 )}
+              </>
+            )}
+          </div>
+          )}
+          {/* Proxmox Datacenter Manager auto-sync */}
+          {!STANDALONE && pdmConfig && (
+          <div className="pt-3 border-t border-border space-y-2">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">PDM auto-sync</span>
+            {!(pdmConfig.token_configured && pdmConfig.host) ? (
+              <p className="text-[10px] text-warning leading-tight">
+                No PDM server configured. Set <span className="font-mono">PDM_HOST</span>,{' '}
+                <span className="font-mono">PDM_TOKEN_ID</span> and{' '}
+                <span className="font-mono">PDM_TOKEN_SECRET</span> in the server .env to enable auto-sync.
+              </p>
+            ) : (
+              <>
+                <label className="flex items-center justify-between gap-2 cursor-pointer">
+                  <span className="text-xs text-foreground">Auto-sync Proxmox Datacenter Manager inventory</span>
+                  <input
+                    type="checkbox"
+                    checked={pdmSyncEnabled}
+                    onChange={(e) => setPdmSyncEnabled(e.target.checked)}
+                    className="cursor-pointer accent-[#e57000]"
+                    aria-label="Toggle PDM auto-sync"
+                  />
+                </label>
+                <div className={pdmSyncEnabled ? 'space-y-1.5' : 'space-y-1.5 opacity-50 pointer-events-none'}>
+                  <label className="text-xs text-muted-foreground">Sync interval (s)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={PDM_MIN_INTERVAL}
+                      max={PDM_MAX_INTERVAL}
+                      value={pdmInterval}
+                      onChange={(e) => { const v = Number(e.target.value); if (!isNaN(v)) setPdmInterval(v) }}
+                      className="w-24 px-2 py-1 rounded-md text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-[#e57000]"
+                      aria-label="PDM sync interval"
+                    />
+                    <span className="text-xs text-muted-foreground">seconds</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Re-imports every remote's nodes, VMs and LXC into the pending inventory. Min 300s (5 min).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    onClick={handlePdmSyncNow}
+                    disabled={pdmSyncing}
+                    className="h-7 text-xs border-[#e57000] text-[#e57000] hover:bg-[#e57000]/10"
+                  >
+                    {pdmSyncing ? 'Syncing…' : 'Re-sync now'}
+                  </Button>
+                  <span className="text-[10px] text-muted-foreground leading-tight">
+                    Runs one import immediately from <span className="font-mono">{pdmConfig.host}:{pdmConfig.port}</span>.
+                  </span>
+                </div>
               </>
             )}
           </div>

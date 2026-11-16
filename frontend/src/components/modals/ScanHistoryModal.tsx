@@ -26,13 +26,14 @@ interface ScanHistoryModalProps {
   demoRuns?: ScanRun[]
 }
 
-type KindFilter = 'all' | 'ip' | 'zigbee' | 'zwave' | 'proxmox' | 'unifi' | 'unraid'
+type KindFilter = 'all' | 'ip' | 'zigbee' | 'zwave' | 'proxmox' | 'pdm' | 'unifi' | 'unraid'
 
 /** Normalise a ScanRun.kind into one of the known display kinds. */
-function runKind(kind: string | undefined): 'ip' | 'zigbee' | 'zwave' | 'proxmox' | 'unifi' | 'unraid' {
+function runKind(kind: string | undefined): 'ip' | 'zigbee' | 'zwave' | 'proxmox' | 'pdm' | 'unifi' | 'unraid' {
   return kind === 'zigbee' ? 'zigbee'
     : kind === 'zwave' ? 'zwave'
     : kind === 'proxmox' ? 'proxmox'
+    : kind === 'pdm' ? 'pdm'
     : kind === 'unifi' ? 'unifi'
     : kind === 'unraid' ? 'unraid'
     : 'ip'
@@ -43,6 +44,7 @@ const KIND_META = {
   zigbee: { label: 'Zigbee', color: '#00d4ff' },
   zwave: { label: 'Z-Wave', color: '#ff6e00' },
   proxmox: { label: 'Proxmox', color: '#e57000' },
+  pdm: { label: 'PDM', color: '#e57000' },
   unifi: { label: 'UniFi', color: '#0559c9' },
   unraid: { label: 'Unraid', color: '#e22828' },
 } as const
@@ -62,6 +64,7 @@ const KIND_FILTERS: { key: KindFilter; label: string }[] = [
   { key: 'zigbee', label: 'Zigbee' },
   { key: 'zwave', label: 'Z-Wave' },
   { key: 'proxmox', label: 'Proxmox' },
+  { key: 'pdm', label: 'PDM' },
   { key: 'unifi', label: 'UniFi' },
   { key: 'unraid', label: 'Unraid' },
 ]
@@ -119,7 +122,7 @@ export function ScanHistoryModal({ open, onClose, demoRuns }: ScanHistoryModalPr
           toast.error(`Scan failed: ${run.error ?? 'unknown error'}`)
         }
         if (prev?.status === 'running' && run.status === 'done') {
-          if (run.kind === 'zigbee' || run.kind === 'zwave' || run.kind === 'proxmox' || run.kind === 'unifi' || run.kind === 'unraid') {
+          if (run.kind === 'zigbee' || run.kind === 'zwave' || run.kind === 'proxmox' || run.kind === 'pdm' || run.kind === 'unifi' || run.kind === 'unraid') {
             const kindLabel = KIND_META[runKind(run.kind)].label
             const label = run.label ? `${kindLabel} (${run.label})` : kindLabel
             // A done run can still carry a non-fatal advisory (e.g. Proxmox
@@ -256,7 +259,7 @@ export function ScanHistoryModal({ open, onClose, demoRuns }: ScanHistoryModalPr
           {filtered.map((r) => {
             const kind = runKind(r.kind)
             const meta = KIND_META[kind]
-            const KindIcon = kind === 'zigbee' ? Network : kind === 'zwave' ? RadioTower : kind === 'proxmox' ? Server : kind === 'unifi' ? Wifi : kind === 'unraid' ? HardDrive : ScanLine
+            const KindIcon = kind === 'zigbee' ? Network : kind === 'zwave' ? RadioTower : kind === 'proxmox' || kind === 'pdm' ? Server : kind === 'unifi' ? Wifi : kind === 'unraid' ? HardDrive : ScanLine
             return (
               <div key={r.id} className="rounded-lg border border-border bg-popover p-3">
                 <div className="flex items-center gap-2">

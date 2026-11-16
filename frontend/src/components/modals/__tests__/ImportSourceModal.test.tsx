@@ -23,7 +23,7 @@ describe('ImportSourceModal', () => {
 
   it('lists every import source', () => {
     setup()
-    for (const label of ['Zigbee2MQTT', 'Z-Wave JS', 'Proxmox VE', 'UniFi']) {
+    for (const label of ['Zigbee2MQTT', 'Z-Wave JS', 'Proxmox VE', 'Proxmox Datacenter Manager', 'UniFi']) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
   })
@@ -32,12 +32,14 @@ describe('ImportSourceModal', () => {
     setup()
     // The tile promises a rough wall-clock and the record kinds — that is what
     // makes the picker a choice rather than four unlabelled doors.
-    expect(screen.getByText('~10 s')).toBeInTheDocument()
+    // Proxmox VE and PDM are both a single API round trip.
+    expect(screen.getAllByText('~10 s')).toHaveLength(2)
     // A mesh walk is not a fixed cost, so the tile says what the range tracks.
     expect(screen.getAllByText('30 s – a few min')).toHaveLength(2)
     expect(screen.getAllByText('· with the mesh size')).toHaveLength(2)
     expect(screen.getByText('Mesh links')).toBeInTheDocument()
-    expect(screen.getByText('LXC')).toBeInTheDocument()
+    expect(screen.getAllByText('LXC')).toHaveLength(2)
+    expect(screen.getByText('PBS')).toBeInTheDocument()
     expect(screen.getByText('APs')).toBeInTheDocument()
   })
 
@@ -45,6 +47,7 @@ describe('ImportSourceModal', () => {
     ['Zigbee2MQTT', 'zigbee'],
     ['Z-Wave JS', 'zwave'],
     ['Proxmox VE', 'proxmox'],
+    ['Proxmox Datacenter Manager', 'pdm'],
     ['UniFi', 'unifi'],
   ])('reports %s as the picked source', (label, key) => {
     const { onPick } = setup()
