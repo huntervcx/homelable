@@ -311,6 +311,12 @@ Each host is linked to its guests with a `virtual` edge. vCPU / RAM / disk are i
 
 > **Full documentation:** [docs/proxmox-import.md](./docs/proxmox-import.md)
 
+### Proxmox Datacenter Manager
+
+If you run **Proxmox Datacenter Manager**, pick it in **Import** instead: one PDM token brings in the nodes, VMs and LXC of every remote it manages (plus Proxmox Backup Servers), with the same inventory, canvas and auto-sync flow. Configure it with `PDM_HOST`, `PDM_TOKEN_ID` and `PDM_TOKEN_SECRET` (default port `8443`).
+
+> **Full documentation:** [docs/pdm-import.md](./docs/pdm-import.md)
+
 ---
 
 ## Session duration

@@ -175,6 +175,8 @@ Nodes: `zwave_coordinator` / `zwave_router` / `zwave_enddevice`. The hierarchy c
 
 Nodes: `proxmox` (host) / `vm` / `lxc`, linked host→guest by a `virtual` edge. The token is env-only, never stored on disk, never returned by the API. Enable auto-sync from **Settings** once `PROXMOX_TOKEN_ID` / `PROXMOX_TOKEN_SECRET` are set. More: [docs/proxmox-import.md](./docs/proxmox-import.md).
 
+**Several clusters behind Proxmox Datacenter Manager?** The **Proxmox Datacenter Manager** import reads every remote PDM manages (PVE nodes, VMs, LXC and Backup Servers) through one token, with the same inventory, canvas and auto-sync flow. More: [docs/pdm-import.md](./docs/pdm-import.md).
+
 ---
 
 ## 12. Device Inventory 🔒
